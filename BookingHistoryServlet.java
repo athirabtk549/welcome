@@ -47,16 +47,11 @@ public class BookingHistoryServlet extends HttpServlet {
                 booking.put("gender", rs.getString("gender"));
                 bookingList.add(booking);
 
-                // Debugging - Ensure these are within the loop
-                System.out.println("Booking ID: " + rs.getString("booking_id"));
-                System.out.println("Passenger Name: " + rs.getString("passenger_name"));
-                System.out.println("Age: " + rs.getString("age"));
-                System.out.println("Gender: " + rs.getString("gender"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            // Closing resources
+
             try {
                 if (rs != null) rs.close();
                 if (stmt != null) stmt.close();
@@ -66,9 +61,9 @@ public class BookingHistoryServlet extends HttpServlet {
             }
         }
 
-        // Set the list as a request attribute
+      
         request.setAttribute("bookingList", bookingList);
-        // Forward the request to the JSP page
+        
         request.getRequestDispatcher("bookinghistory.jsp").forward(request, response);
     }
 }
