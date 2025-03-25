@@ -15,7 +15,7 @@ public class ConfirmBookingServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession();
 
-        // Retrieve session attributes with null checks
+     
         String trainNumber = (String) session.getAttribute("trainNumber");
         String departure = (String) session.getAttribute("departure");
         String destination = (String) session.getAttribute("destination");
@@ -24,12 +24,12 @@ public class ConfirmBookingServlet extends HttpServlet {
         String[] passengerNames = (String[]) session.getAttribute("passengerNames");
         String[] ages = (String[]) session.getAttribute("ages");
         String[] genders = (String[]) session.getAttribute("genders");
-        Double fare = (Double) session.getAttribute("fare"); // Prevents ClassCastException
+        Double fare = (Double) session.getAttribute("fare");
         String username = (String) session.getAttribute("username");
 
-        // Handle null fare case
+     
         if (fare == null) {
-            fare = 0.0; // Default to 0 if fare is missing
+            fare = 0.0;
         }
 
         Connection conn = null;
@@ -39,9 +39,9 @@ public class ConfirmBookingServlet extends HttpServlet {
 
         try {
             conn = DbConnection.getConnection();
-            conn.setAutoCommit(false); // Start transaction
+            conn.setAutoCommit(false);
 
-            // Insert booking details
+           
             String bookingQuery = "INSERT INTO bookings (train_number, departure, destination, travel_date, travel_class, username, fare) VALUES (?, ?, ?, ?, ?, ?, ?)";
             bookingStmt = conn.prepareStatement(bookingQuery, Statement.RETURN_GENERATED_KEYS);
             bookingStmt.setString(1, trainNumber);
@@ -54,12 +54,12 @@ public class ConfirmBookingServlet extends HttpServlet {
 
             int rowsAffected = bookingStmt.executeUpdate();
             if (rowsAffected > 0) {
-                // Get the auto-generated booking ID
+               
                 generatedKeys = bookingStmt.getGeneratedKeys();
                 if (generatedKeys.next()) {
                     int bookingId = generatedKeys.getInt(1);
 
-                    // Insert passenger details
+                   
                     String passengerQuery = "INSERT INTO passengers (booking_id, passenger_name, age, gender) VALUES (?, ?, ?, ?)";
                     passengerStmt = conn.prepareStatement(passengerQuery);
 
@@ -72,24 +72,21 @@ public class ConfirmBookingServlet extends HttpServlet {
                     }
 
                     passengerStmt.executeBatch();
-                    conn.commit(); // Commit transaction
+                    conn.commit();
 
-                 // After successfully confirming the booking for a passenger
                     List<String> confirmedPassengers = (List<String>) session.getAttribute("confirmedPassengers");
                     if (confirmedPassengers == null) {
                         confirmedPassengers = new ArrayList<>();
                     }
                     for (String name : passengerNames) {
-                        confirmedPassengers.add(name);  // Store names instead of indices
+                        confirmedPassengers.add(name);  
                     }
                     session.setAttribute("confirmedPassengers", confirmedPassengers);
+                    session.setAttribute("allConfirmed", true);
 
-
-                    // Set attributes and redirect
-                    session.setAttribute("bookingMessage", "Ticket Confirmed Successfully!");
                     session.setAttribute("bookingId", bookingId);
                     response.sendRedirect("booking-details.jsp");
-                    return; // Ensure no further execution
+                    return;
                 }
             } else {
                 LOGGER.log(Level.SEVERE, "Booking insertion failed.");
@@ -99,27 +96,28 @@ public class ConfirmBookingServlet extends HttpServlet {
             LOGGER.log(Level.SEVERE, "Database error during booking confirmation", e);
             if (conn != null) {
                 try {
-                    conn.rollback(); // Rollback on failure
+                    conn.rollback();
                 } catch (SQLException ex) {
                     LOGGER.log(Level.SEVERE, "Rollback failed", ex);
                 }
             }
             response.sendRedirect("error.jsp?message=Database%20Error.%20Please%20Try%20Again.");
         } finally {
-            closeResources(generatedKeys, conn, bookingStmt, passengerStmt);  // Ensure all resources are closed
+            closeResources(generatedKeys, conn, bookingStmt, passengerStmt);  
         }
     }
 
-    // Method to close database resources
+   
     private void closeResources(ResultSet rs, Connection conn, PreparedStatement... statements) {
         try {
-            if (rs != null) rs.close();  // Close the ResultSet
+            if (rs != null) rs.close();  
             for (PreparedStatement stmt : statements) {
-                if (stmt != null) stmt.close();  // Close each PreparedStatement
+                if (stmt != null) stmt.close();  
             }
-            if (conn != null) conn.close();  // Close the Connection
+            if (conn != null) conn.close();  
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error closing resources", e);  // Log if an error occurs while closing resources
+            LOGGER.log(Level.SEVERE, "Error closing resources", e);  
         }
     }
-} 
+}     
+            
