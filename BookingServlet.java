@@ -3,8 +3,6 @@ package com.welcome;
 import java.io.IOException;
 import java.sql.*;
 import java.util.Arrays;
-
-import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -19,13 +17,27 @@ public class BookingServlet extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
 
         HttpSession session = request.getSession();
+        String action = request.getParameter("action");
 
-        // Retrieving booking details from request
+        if ("updateFare".equals(action)) {
+            String fareStr = request.getParameter("fare");
+            if (fareStr != null && !fareStr.isEmpty()) {
+                try {
+                    double fare = Double.parseDouble(fareStr);
+                    session.setAttribute("fare", fare);
+                    response.getWriter().write("Fare updated successfully.");
+                } catch (NumberFormatException e) {
+                    response.getWriter().write("Invalid fare value.");
+                }
+            }
+            return;
+        }
+
         String trainNumber = request.getParameter("train_number");
         String departure = request.getParameter("departure");
         String destination = request.getParameter("destination");
 
-        if (departure.equalsIgnoreCase(destination)) {
+        if (departure != null && departure.equalsIgnoreCase(destination)) {
             request.setAttribute("updateMessage", "Departure and Destination cannot be the same.");
             request.getRequestDispatcher("booking.jsp").forward(request, response);
             return;
@@ -36,7 +48,8 @@ public class BookingServlet extends HttpServlet {
         String[] passengerNames = request.getParameterValues("passengerName[]");
         String[] ages = request.getParameterValues("age[]");
         String[] genders = request.getParameterValues("gender[]");
-        
+        int passengerCount = (passengerNames != null) ? passengerNames.length : 1;
+
         session.setAttribute("trainNumber", trainNumber);
         session.setAttribute("departure", departure);
         session.setAttribute("destination", destination);
@@ -46,9 +59,7 @@ public class BookingServlet extends HttpServlet {
         session.setAttribute("ages", ages);
         session.setAttribute("genders", genders);
 
-
-        // Calculate fare
-        double fare = calculateFare(departure, destination, travelClass);
+        double fare = calculateFare(departure, destination, travelClass, passengerCount);
         session.setAttribute("fare", fare);
 
         request.setAttribute("trainNumber", trainNumber);
@@ -56,28 +67,32 @@ public class BookingServlet extends HttpServlet {
         request.setAttribute("destination", destination);
         request.setAttribute("travelDate", travelDate);
         request.setAttribute("travelClass", travelClass);
-        request.setAttribute("fare", fare);
-        	
-        if (passengerNames != null) {
-            // Iterate over passengerNames array and print each name
-            for (int i = 0; i < passengerNames.length; i++) {
-                System.out.println("Passenger " + (i + 1) + ": " + passengerNames[i]);
-            }
-        }
+        request.setAttribute("fare", session.getAttribute("fare"));
 
-        System.out.println("Passenger Names: " + Arrays.toString(passengerNames));
-        System.out.println("Ages: " + Arrays.toString(ages));
-        System.out.println("Genders: " + Arrays.toString(genders));
-
-        String action = request.getParameter("action");
-        if ("edit".equals(action)) {
-            response.sendRedirect("booking.jsp?edit=true"); // Redirect to booking.jsp in edit mode
-        } else {
-            response.sendRedirect("booking-details.jsp");  // Proceed to booking-details.jsp
-        }
+        request.getRequestDispatcher("booking-details.jsp").forward(request, response);
     }
-    // Method to calculate fare based on travel class and distance
-    private double calculateFare(String departure, String destination, String travelClass) {
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        HttpSession session = request.getSession();
+        String departure = request.getParameter("departure");
+        String destination = request.getParameter("destination");
+        String travelClass = request.getParameter("travel_class");
+        String passengerCountStr = request.getParameter("passenger_count");
+
+        if (departure == null || destination == null || travelClass == null || departure.equals(destination)) {
+            response.getWriter().write("0");
+            return;
+        }
+
+        int passengerCount = (passengerCountStr != null && !passengerCountStr.isEmpty()) ? Integer.parseInt(passengerCountStr) : 1;
+        double totalFare = calculateFare(departure, destination, travelClass, passengerCount);
+        session.setAttribute("fare", totalFare);
+
+        response.setContentType("text/plain");
+        response.getWriter().write(String.valueOf(totalFare));
+    }
+
+    private double calculateFare(String departure, String destination, String travelClass, int passengerCount) {
         int distance = DistanceCalculator.getDistance(departure, destination);
         double farePerKm;
         switch (travelClass) {
@@ -91,6 +106,6 @@ public class BookingServlet extends HttpServlet {
             case "SL": farePerKm = 1.5; break;
             default: throw new IllegalArgumentException("Invalid travel class.");
         }
-        return distance * farePerKm;
+        return distance * farePerKm * passengerCount;
     }
 }
